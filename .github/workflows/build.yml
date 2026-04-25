@@ -27,7 +27,7 @@ jobs:
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::123456789012:role/GitHubActionsLambdaDeployRole # Replace with your Role ARN
+          role-to-assume: arn:aws:iam::373447294485:role/GitHubActionsLambdaDeployRole # Replace with your Role ARN
           aws-region: us-east-1
           mask-aws-account-id: true
 
