@@ -5,8 +5,8 @@ on:
     branches: [ main ]
 
 permissions:
-  id-token: write   # Mandatory for OIDC
-  contents: read    # Required for actions/checkout
+  id-token: write
+  contents: read
 
 jobs:
   deploy:
@@ -24,19 +24,23 @@ jobs:
       - name: Build with Maven
         run: mvn clean package
 
-      - name: 🔍 Debug & Inspect JAR (The Fix)
+      - name: 🔍 Inspect JAR (Debug Step)
         run: |
-          echo "--- Listing all files in target directory ---"
+          echo "--- Checking target directory sizes ---"
           ls -lh target/
           
-          echo "--- Checking JAR content for the Handler class ---"
-          # This will list the contents of the JAR and search for your handler
-          # It helps verify if the Maven Shade plugin actually worked
-          jar tf target/springboot-api-lambda-0.0.1-SNAPSHOT.jar | grep "StreamLambdaHandler" || echo "❌ Handler NOT FOUND in JAR!"
+          # Find the largest JAR (the shaded one)
+          # We use this to make sure we don't upload the 2KB 'original' jar
+          FAT_JAR=$(ls -S target/*.jar | head -1)
+          echo "Identified Fat JAR: $FAT_JAR"
           
-          echo "--- Checking File Size ---"
-          # A proper shaded JAR should be > 30MB. If it's < 100KB, it's the wrong JAR.
-          du -sh target/springboot-api-lambda-0.0.1-SNAPSHOT.jar
+          echo "--- Verifying Handler Class inside $FAT_JAR ---"
+          if jar tf "$FAT_JAR" | grep -q "com/example/test/StreamLambdaHandler.class"; then
+            echo "✅ SUCCESS: StreamLambdaHandler found in $FAT_JAR"
+          else
+            echo "❌ ERROR: StreamLambdaHandler NOT found! Shading failed."
+            exit 1
+          fi
 
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -47,20 +51,23 @@ jobs:
 
       - name: Update Lambda Code & Publish Version
         run: |
-          # 1. Upload the JAR
+          # Dynamically pick the fat JAR identified in the previous step
+          FAT_JAR=$(ls -S target/*.jar | head -1)
+          
+          # 1. Update Code
           aws lambda update-function-code \
             --function-name gateway_lambda_snapshot \
-            --zip-file fileb://target/springboot-api-lambda-0.0.1-SNAPSHOT.jar
+            --zip-file fileb://"$FAT_JAR"
           
-          # 2. Wait for update to finish
+          # 2. Wait for successful update
           aws lambda wait function-updated --function-name gateway_lambda_snapshot
           
-          # 3. Publish a new version
+          # 3. Publish New Version (SnapStart requires a version)
           VERSION=$(aws lambda publish-version --function-name gateway_lambda_snapshot --query Version --output text)
-          echo "Published Version: $VERSION"
+          echo "New Version Published: $VERSION"
           
-          # 4. Update the 'prod' alias
+          # 4. Point 'prod' alias to this version
           aws lambda update-alias \
             --function-name gateway_lambda_snapshot \
             --name prod \
-            --function-version $VERSION
+            --function-version "$VERSION"
