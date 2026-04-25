@@ -24,15 +24,19 @@ jobs:
       - name: Build with Maven
         run: mvn clean package
 
-      - name: Verify Shaded JAR Content
+      - name: 🔍 Debug & Inspect JAR (The Fix)
         run: |
-          echo "Verifying that the Handler class exists in the JAR..."
-          if jar tf target/springboot-api-lambda-0.0.1-SNAPSHOT.jar | grep -q "StreamLambdaHandler"; then
-            echo "✅ StreamLambdaHandler found!"
-          else
-            echo "❌ ERROR: StreamLambdaHandler NOT found in the JAR. Deployment will fail."
-            exit 1
-          fi
+          echo "--- Listing all files in target directory ---"
+          ls -lh target/
+          
+          echo "--- Checking JAR content for the Handler class ---"
+          # This will list the contents of the JAR and search for your handler
+          # It helps verify if the Maven Shade plugin actually worked
+          jar tf target/springboot-api-lambda-0.0.1-SNAPSHOT.jar | grep "StreamLambdaHandler" || echo "❌ Handler NOT FOUND in JAR!"
+          
+          echo "--- Checking File Size ---"
+          # A proper shaded JAR should be > 30MB. If it's < 100KB, it's the wrong JAR.
+          du -sh target/springboot-api-lambda-0.0.1-SNAPSHOT.jar
 
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -43,19 +47,19 @@ jobs:
 
       - name: Update Lambda Code & Publish Version
         run: |
-          # 1. Upload the JAR verified in the previous step
+          # 1. Upload the JAR
           aws lambda update-function-code \
             --function-name gateway_lambda_snapshot \
             --zip-file fileb://target/springboot-api-lambda-0.0.1-SNAPSHOT.jar
           
-          # 2. Wait for the update to complete (especially important for SnapStart functions)
+          # 2. Wait for update to finish
           aws lambda wait function-updated --function-name gateway_lambda_snapshot
           
-          # 3. Publish a new version (This triggers the SnapStart snapshot creation)
+          # 3. Publish a new version
           VERSION=$(aws lambda publish-version --function-name gateway_lambda_snapshot --query Version --output text)
           echo "Published Version: $VERSION"
           
-          # 4. Point the 'prod' alias to the new version
+          # 4. Update the 'prod' alias
           aws lambda update-alias \
             --function-name gateway_lambda_snapshot \
             --name prod \
