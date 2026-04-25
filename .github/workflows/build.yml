@@ -1,0 +1,50 @@
+name: Build and Deploy Spring Boot (OIDC)
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  id-token: write   # Mandatory for OIDC
+  contents: read    # Required for actions/checkout
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'corretto'
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn clean package
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/YourGithubActionsRole # Replace with your Role ARN
+          aws-region: us-east-1
+
+      - name: Update Lambda Code & Publish Version
+        run: |
+          # 1. Upload the shaded JAR
+          aws lambda update-function-code \
+            --function-name gateway_lambda_snapshot \
+            --zip-file fileb://target/springboot-api-lambda-0.0.1-SNAPSHOT.jar
+          
+          # 2. Wait for the function to be ready
+          aws lambda wait function-updated --function-name gateway_lambda_snapshot
+          
+          # 3. Publish a new version (Crucial for SnapStart)
+          VERSION=$(aws lambda publish-version --function-name gateway_lambda_snapshot --query Version --output text)
+          
+          # 4. Point the 'prod' alias to the newest version
+          aws lambda update-alias \
+            --function-name gateway_lambda_snapshot \
+            --name prod \
+            --function-version $VERSION
