@@ -12,23 +12,24 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 
 public class StreamLambdaHandler implements RequestStreamHandler {
-	
+
 	private static final SpringBootLambdaContainerHandler<AwsProxyRequest, AwsProxyResponse> handler;
-   
+
 	static {
-        try {
-            // This initializes Spring Boot once when the Lambda (or SnapStart snapshot) starts
-            handler = SpringBootLambdaContainerHandler.getAwsProxyHandler(SpringbootApiLambdaApplication.class);
-        } catch (ContainerInitializationException e) {
-            throw new RuntimeException("Could not initialize Spring Boot application", e);
-        }
-    }
+		try {
+			// This initializes Spring Boot once when the Lambda (or SnapStart snapshot)
+			// starts
+			handler = SpringBootLambdaContainerHandler.getAwsProxyHandler(SpringbootApiLambdaApplication.class);
+		} catch (ContainerInitializationException e) {
+			throw new RuntimeException("Could not initialize Spring Boot application", e);
+		}
+	}
 
 	@Override
 	public void handleRequest(InputStream inputStream, OutputStream outputStream, Context context) throws IOException {
-		
+
 		handler.proxyStream(inputStream, outputStream, context);
-		
+
 	}
 
 }
