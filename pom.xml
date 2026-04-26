@@ -6,6 +6,12 @@
 
 	<modelVersion>4.0.0</modelVersion>
 
+	<properties>
+		<maven.compiler.source>21</maven.compiler.source>
+		<maven.compiler.target>21</maven.compiler.target>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	</properties>
+
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
@@ -19,13 +25,8 @@
 	<name>springboot-api-lambda</name>
 	<description>Demo project for Spring Boot Lambda deployment</description>
 
-	<properties>
-		<java.version>21</java.version>
-	</properties>
-
 	<dependencies>
 
-		<!-- Spring Web (Tomcat excluded — Lambda doesn't need embedded server) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
@@ -37,28 +38,22 @@
 			</exclusions>
 		</dependency>
 
-		<!-- Undertow as servlet container -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-undertow</artifactId>
 		</dependency>
 
-		<!-- Actuator (optional) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 
-		<!-- AWS Serverless Java Container for Spring Boot 3. This already includes 
-			aws-lambda-java-core and aws-lambda-java-events transitively — so we declare 
-			them separately ONLY to pin versions. -->
 		<dependency>
 			<groupId>com.amazonaws.serverless</groupId>
 			<artifactId>aws-serverless-java-container-springboot3</artifactId>
 			<version>2.0.0</version>
 		</dependency>
 
-		<!-- Pin these explicitly so IDE can resolve com.amazonaws.services.lambda.runtime.* -->
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-lambda-java-core</artifactId>
@@ -71,7 +66,6 @@
 			<version>3.11.4</version>
 		</dependency>
 
-		<!-- CRaC for SnapStart support -->
 		<dependency>
 			<groupId>org.crac</groupId>
 			<artifactId>crac</artifactId>
@@ -82,21 +76,19 @@
 
 	<build>
 		<plugins>
+
 			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>default-repackage</id>
-						<phase>none</phase>
-					</execution>
-				</executions>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<release>21</release>
+				</configuration>
 			</plugin>
 
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>3.5.1</version>  <!-- ✅ version you confirmed works -->
+				<version>3.5.1</version>
 				<executions>
 					<execution>
 						<phase>package</phase>
@@ -122,8 +114,7 @@
 									implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
 									<resource>META-INF/spring/org.springframework.boot.actuate.autoconfigure.web.ManagementContextConfiguration.imports</resource>
 								</transformer>
-								<transformer
-									implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+								<!-- ✅ NO ServicesResourceTransformer — this was causing the error -->
 							</transformers>
 							<filters>
 								<filter>
@@ -139,6 +130,19 @@
 					</execution>
 				</executions>
 			</plugin>
+
+			<!-- Disable Spring Boot repackaging -->
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>default-repackage</id>
+						<phase>none</phase>
+					</execution>
+				</executions>
+			</plugin>
+
 		</plugins>
 	</build>
 
