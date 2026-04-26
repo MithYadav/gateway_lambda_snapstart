@@ -96,7 +96,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>3.5.2</version>
+				<version>3.5.1</version>  <!-- ✅ version you confirmed works -->
 				<executions>
 					<execution>
 						<phase>package</phase>
@@ -123,8 +123,7 @@
 									<resource>META-INF/spring/org.springframework.boot.actuate.autoconfigure.web.ManagementContextConfiguration.imports</resource>
 								</transformer>
 								<transformer
-									implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer">
-								</transformer>
+									implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
 							</transformers>
 							<filters>
 								<filter>
